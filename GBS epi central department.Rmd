@@ -1,0 +1,362 @@
+---
+title: "Casos de Sx de Guillain Barré"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+
+**Casos por año provenientes de todos los servicios de salud**
+```{r gbs egresos, echo = F}
+suppressPackageStartupMessages({
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(haven)
+})
+egresos_gbs <- read_excel("egresos_gbs_2008_2017.xlsx")
+
+
+egresos_gbs1 <- egresos_gbs %>%
+  select(Egresos, Año:...13)
+
+egresos_gbs2 <- egresos_gbs1[-1,]
+
+
+
+
+egresos_gbs3 <- egresos_gbs2 %>%
+  rename(estado = Egresos, 
+         "y2008" = Año,
+         "y2009" = ...5,
+         "y2010" = ...6,
+         "y2011" = ...7,
+         "y2012" = ...8,
+         "y2013" = ...9,
+         "y2014" = ...10,
+         "y2015" = ...11,
+         "y2016" = ...12,
+         "y2017" = ...13) %>%
+  filter(!str_detect(estado, "Total")) %>%
+  group_by(estado) %>%
+  mutate(y2008 = as.integer(y2008),
+         y2009 = as.integer(y2009),
+         y2010 = as.integer(y2010),
+         y2011 = as.integer(y2011),
+         y2012 = as.integer(y2012),
+         y2013 = as.integer(y2013),
+         y2014 = as.integer(y2014),
+         y2015 = as.integer(y2015),
+         y2016 = as.integer(y2016),
+         y2017 = as.integer(y2017))
+
+
+
+
+egresos_gbs4 <- egresos_gbs3 %>%
+  gather(y2008:y2017,key = "year", value = "casos")
+
+
+
+egresos_gbs5 <- egresos_gbs4 %>%
+  group_by(year) %>%
+  summarise(total = sum(casos, na.rm = T),
+            sd = round(sd(casos, na.rm = T), 1),
+            ci95 = sd * 1.96)
+
+
+
+
+ggplot(egresos_gbs5,aes(x = year, y = total)) + 
+  geom_col() +
+  geom_text(aes(y = total, label = total)) +
+  ggtitle("Casos de GB por año según base general (no desglosa casos por mes)")+
+  labs(caption = "Casos provenientes de todos los servicios de salud")
+
+
+
+```
+
+
+```{r, echo = F}
+gbs_11 <- read_excel("gbs_2011.xlsx")
+gbs_12 <- read_excel("gbs_2012.xlsx")
+gbs_13 <- read_excel("gbs_2013.xlsx")
+gbs_14 <- read_excel("gbs_2014.xlsx")
+gbs_15 <- read_excel("gbs_2015.xlsx")
+gbs_16 <- read_excel("gbs_2016.xlsx")
+gbs_17 <- read_excel("gbs_2017.xlsx")
+gbs_18 <- read_excel("gbs_2018.xlsx")
+
+
+modificar <- function(x, y){
+  if(ncol(x) == 3){
+colnames(x) <- c("Entidad", "Dx", "Total")
+x <- x %>%
+  select("Entidad", "Total")
+x <- x[-1,] %>%
+  filter(!startsWith(Entidad, "Total")) %>%
+  mutate(Entidad = tolower(Entidad),
+         Total = as.double(Total),
+         Año = y) %>%
+  select(Entidad, Total, Año)} else {
+colnames(x) <- c("Entidad", "Dx", "Dx_2", "Total")
+x <- x %>%
+  select("Entidad", "Total")
+x <- x[-1,] %>%
+  filter(!startsWith(Entidad, "Total")) %>%
+  mutate(Entidad = tolower(Entidad),
+         Total = as.double(Total),
+         Año = y) %>%
+  select(Entidad, Total, Año)
+}
+}
+
+gbs_11 <- modificar(gbs_11, 2011) 
+gbs_11 <- gbs_11 %>% rename("2011" = Año)
+gbs_12 <- modificar(gbs_12, 2012) 
+gbs_12 <-gbs_12 %>% rename("2012" = Año)
+gbs_13 <- modificar(gbs_13, 2013) 
+gbs_13 <- gbs_13 %>% rename("2013" = Año)
+gbs_14 <- modificar(gbs_14, 2014) 
+gbs_14 <- gbs_14 %>% rename("2014" = Año)
+gbs_15 <- modificar(gbs_15, 2015) 
+gbs_15 <- gbs_15 %>% rename("2015" = Año)
+gbs_16 <- modificar(gbs_16, 2016) 
+gbs_16 <- gbs_16 %>% rename("2016" = Año)
+gbs_17 <- modificar(gbs_17, 2017) 
+gbs_17 <- gbs_17 %>% rename("2017" = Año)
+gbs_18 <- modificar(gbs_18, 2018) 
+gbs_18 <- gbs_18 %>% rename("2018" = Año)
+
+
+gbs_total <- gbs_11 %>%
+  full_join(gbs_12) %>%
+  full_join(gbs_13) %>%
+  full_join(gbs_14) %>%
+  full_join(gbs_15) %>%
+  full_join(gbs_16) %>%
+  full_join(gbs_17) %>%
+  full_join(gbs_18) %>%
+  mutate(año = if_else(!is.na(`2011`), 2011, 
+                      ifelse(!is.na(`2012`) &  `2012` == 2012, 2012,
+                             ifelse(!is.na(`2013`)& `2013` == 2013, 2013, 
+                                    ifelse(!is.na(`2014`)&`2014` == 2014, 2014,
+                                           ifelse(!is.na(`2015`) & `2015` == 2015, 2015,
+                                                 ifelse(!is.na(`2016`) &`2016` == 2016,
+                                                        2016, 
+                                                         ifelse(!is.na(`2017`)& `2017`
+                                                                == 2017, 2017,
+                                                                2018)))))))) %>% select(Entidad, Total, año)
+
+
+ggplot(gbs_total, aes(x = as.factor(año), y = Total)) +
+  geom_col()+
+  theme_bw() +
+  xlab("Año") +
+  ylab("Casos") +
+  ggtitle("Casos de GB por año según base de egresos") +
+  labs(caption = "Solo casos de SSA")
+  
+
+ggplot(gbs_total, aes(x = as.factor(año), y = Total)) +
+  geom_col() +
+  facet_wrap(~Entidad) + 
+  theme_bw() +
+  xlab("Año") +
+  ylab("Casos") +
+  ggtitle("Casos de GB por año según base de egresos") +
+  labs(caption = "Solo casos de SSA")
+```
+
+**DE AQUI PARA ABAJO SON SOLO PACIENTES DE SSA**
+
+**-Base de egresos hospitalarios**
+Aquí abajo se presenta la información de la base de datos de egresos hospitalarios. 
+```{r GBS base de egresos, echo= F}
+gbs_egr_2011 <- read_excel("gbs_egreso_2011.xlsx")
+gbs_egr_2012 <- read_excel("gbs_egreso_2012.xlsx")
+gbs_egr_2013 <- read_excel("gbs_egreso_2013.xlsx")
+gbs_egr_2014 <- read_excel("gbs_egreso_2014.xlsx")
+gbs_egr_2015 <- read_excel("gbs_egreso_2015.xlsx")
+gbs_egr_2016 <- read_excel("gbs_egreso_2016.xlsx")
+gbs_egr_2017 <- read_excel("gbs_egreso_2017.xlsx")
+gbs_egr_2018 <- read_excel("gbs_egreso_2018.xlsx")
+
+limpieza <- function(x, y){
+x <- x[-1,] %>%
+  select(Egresos, ...4, ...5) %>%
+  rename(mes = ...4,
+         conteo = ...5,
+         entidad = Egresos) %>%
+  mutate(year_eg = y) %>%
+  fill(entidad) %>%
+  filter(!is.na(mes))
+}
+
+
+
+gbs_egr_11 <- limpieza(gbs_egr_2011, 2011)
+gbs_egr_12 <- limpieza(gbs_egr_2012, 2012)
+gbs_egr_13 <- limpieza(gbs_egr_2013, 2013)
+gbs_egr_14 <- limpieza(gbs_egr_2014, 2014)
+gbs_egr_15 <- limpieza(gbs_egr_2015, 2015)
+gbs_egr_16 <- limpieza(gbs_egr_2016, 2016)
+gbs_egr_17 <- limpieza(gbs_egr_2017, 2017)
+gbs_egr_18 <- limpieza(gbs_egr_2018, 2018)
+
+gbs_time <- rbind(gbs_egr_11, gbs_egr_12, gbs_egr_13, gbs_egr_14, 
+                  gbs_egr_15, gbs_egr_16, gbs_egr_17, gbs_egr_18)
+
+meses <- c("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", 
+           "Noviembre", "Diciembre")
+
+
+
+  
+gbs_time <- gbs_time %>% 
+  mutate(mes = factor(mes, levels = meses,ordered = T)) %>% 
+  arrange(mes)
+
+
+
+ggplot(gbs_time, aes(x = mes)) +
+  geom_bar(colour = "black") +
+  facet_wrap(~year_eg) +
+  theme_bw() +
+  scale_x_discrete(limits = meses) +
+  theme(axis.text.x = element_text(size = 5, angle = -30))+
+  ggtitle("Casos de GB por mes en base de egresos")
+#####Patrón por mes de incidencia de GBS según el estado
+
+por_estado <- function(x, y, z){
+  ggplot(y[y$entidad==x,], aes(x = mes, y = as.numeric(conteo))) +
+  geom_col() +
+  facet_grid(~year_eg) +
+  ggtitle(x) +
+    theme(axis.text.x = element_text(size = 5, angle = -30))+
+    labs(caption = z) +
+    scale_y_continuous(breaks = seq(from = min(as.numeric(y$conteo)), to = max(as.numeric(y$conteo)), by = 1),
+                       name = "Número de casos")
+}
+estados <- levels(as.factor(gbs_time$entidad))
+
+map(estados,gbs_time, "*Egresos hospitalarios, solo SSA",.f = por_estado)
+
+?scale_y_continuous()
+```
+**-Base de urgencias**
+Debajo se presenta la información procedente de la base de URGENCIAS. 
+```{r GBS urgencias por mes, echo = F}
+gbs_urg_2011 <- read_excel("gbs_urg_2011.xlsx")
+gbs_urg_2012 <- read_excel("gbs_urg_2012.xlsx")
+gbs_urg_2013 <- read_excel("gbs_urg_2013.xlsx")
+gbs_urg_2014 <- read_excel("gbs_urg_2014.xlsx")
+gbs_urg_2015 <- read_excel("gbs_urg_2015.xlsx")
+gbs_urg_2016 <- read_excel("gbs_urg_2016.xlsx")
+gbs_urg_2017 <- read_excel("gbs_urg_2017.xlsx")
+gbs_urg_2018 <- read_excel("gbs_urg_2018.xlsx")
+
+limpiezau <- function(x, y){
+x <- x[-1,] %>%
+  select(Urgencias, ...4, ...5) %>%
+  rename(mes = ...4,
+         conteo = ...5,
+         entidad = Urgencias) %>%
+  mutate(year_eg = y) %>%
+  fill(entidad) %>%
+  filter(!is.na(mes))
+}
+
+gbs_urg_11 <- gbs_urg_2011[-1,] %>% 
+  mutate(year_eg = 2011) %>%
+  rename(entidad = Urgencias, mes = ...3, conteo = ...4) %>%
+  select(entidad, mes, conteo, year_eg) %>%
+  fill(entidad) %>%
+  filter(!is.na(mes))
+
+gbs_urg_12 <- limpiezau(gbs_urg_2012, 2012)
+gbs_urg_13 <- limpiezau(gbs_urg_2013, 2013)
+gbs_urg_14 <- limpiezau(gbs_urg_2014, 2014)
+gbs_urg_15 <- limpiezau(gbs_urg_2015, 2015)
+gbs_urg_16 <- limpiezau(gbs_urg_2016, 2016)
+gbs_urg_17 <- limpiezau(gbs_urg_2017, 2017)
+gbs_urg_18 <- limpiezau(gbs_urg_2018, 2018)
+
+gbs_total_urg <- rbind(gbs_urg_11,gbs_urg_12,gbs_urg_13,gbs_urg_14,gbs_urg_15,gbs_urg_16,gbs_urg_17,gbs_urg_18)
+
+gbs_total_urg <- gbs_total_urg %>% 
+  mutate(mes = factor(mes, levels = meses,ordered = T)) %>% 
+  arrange(mes)
+
+ggplot(gbs_total_urg, aes(x = mes)) +
+  geom_bar(colour = "black") +
+  facet_wrap(~year_eg) +
+  theme_bw() +
+  scale_x_discrete(limits = meses)
+
+ggplot(gbs_total_urg, aes(x = as.factor(year_eg))) +
+  geom_bar(colour = "black")+
+  theme_bw() 
+
+####Por estado y por mes
+estados_2 <- levels(as.factor(gbs_total_urg$entidad))
+
+map(estados_2, gbs_total_urg, "*Urgencias hospitalarias, solo SSA",.f=por_estado)
+
+
+
+
+
+```
+
+Aquí abajo comparo la información aportada por la base de egresos y de urgencias según el año y mes, de acuerdo al estado. Como podrá percatarse, hay meses en los cuales si coincide el reporte. Sin embargo, hay otros en los cuales no se reportan casos en una base y si en la otra o el número de casos es discortante. 
+```{r, echo=F}
+total_eg <- gbs_time %>%
+  group_by(year_eg) %>%
+  summarise(total_egresos = sum(as.numeric(conteo)))
+
+total_urg <- gbs_total_urg %>%
+  group_by(year_eg) %>%
+  summarise(total_urgencias = sum(as.numeric(conteo)))
+
+
+total_de_totales <- total_eg %>% 
+  left_join(total_urg, by = "year_eg") %>% 
+  gather(key = "base", value = "total", total_egresos, total_urgencias)
+
+ggplot(total_de_totales, aes(x = as.factor(year_eg), y = total, fill = base)) +
+  geom_col(position = "dodge") +
+  xlab("Número de casos") +
+  ylab("Año") +
+  ggtitle("Casos de GB reportados según base de egresos o urgencias") +
+  scale_y_continuous(breaks= seq(from = 0, to = 1200, by = 100)) +
+  labs(caption = "*Sólo pacientes de SSA")
+
+
+
+
+ven <- gbs_time %>% 
+  mutate(base = "egresos") %>% 
+ full_join(mutate(gbs_total_urg, base = "urgencias"))
+
+table(ven$base)
+
+
+por_mes <- function(x, y, z){
+  ggplot(y[y$entidad==x,], aes(x = mes, y = as.numeric(conteo), fill = base)) +
+    geom_col(position = "dodge") +
+    facet_grid(~year_eg) +
+    ggtitle(x) +
+    theme(axis.text.x = element_text(size = 5, angle = -30))+
+    labs(caption = z) +
+    scale_y_continuous(breaks = seq(from = min(as.numeric(y$conteo)), to = max(as.numeric(y$conteo)), by = 1),
+                       name = "Número de casos")
+  }
+
+
+  
+map(estados, ven, "*Egresos y Urgencias hospitalarias, solo SSA",.f=por_mes)  
+```
+
